@@ -17,7 +17,7 @@ class ProcessNotificationBatch:
 
     notifications: tuple[tuple[dict, str], ...]
 
-    def _live(self, registry) -> list:
+    def _live(self, registry) -> "list":
         return [(event, text) for event, text in self.notifications
                 if not registry.is_completion_consumed(event.get("session_id", ""))]
 
@@ -375,7 +375,7 @@ class TimelineNotification(str):
         return instance
 
     @classmethod
-    def for_delegation(cls, text: str, event: dict) -> TimelineNotification:
+    def for_delegation(cls, text: str, event: "dict") -> "TimelineNotification":
         from agent.notification_presentation import diagnostic_process_event
         return cls(text, async_delegation_display_text(event), "async_delegation_complete",
                    "diagnostic" if diagnostic_process_event(event) else "result")

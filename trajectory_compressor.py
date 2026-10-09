@@ -134,7 +134,7 @@ class CompressionConfig:
     metrics_output_file: str = "compression_metrics.json"
 
     @classmethod
-    def from_yaml(cls, yaml_path: str) -> CompressionConfig:
+    def from_yaml(cls, yaml_path: str) -> "CompressionConfig":
         """Load configuration from YAML file (missing keys keep the defaults)."""
         with open(yaml_path, 'r', encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
@@ -445,7 +445,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
             return text
         return "[CONTEXT SUMMARY]:" if not text else f"[CONTEXT SUMMARY]: {text}"
 
-    def _summary_attempt_failed(self, metrics: TrajectoryMetrics, attempt: int, exc: Exception) -> Optional[float]:
+    def _summary_attempt_failed(self, metrics: TrajectoryMetrics, attempt: int, exc: "Exception") -> Optional[float]:
         """Record a failed attempt; return the backoff delay, or None on the last attempt."""
         metrics.summarization_errors += 1
         self.logger.warning("Summarization attempt %d failed: %s", attempt + 1, exc)
@@ -584,7 +584,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
         """Compress every ``*.jsonl`` in ``input_dir`` into ``output_dir`` (async, parallel API calls)."""
         asyncio.run(self._process_directory_async(input_dir, output_dir))
 
-    async def _process_one(self, run: _RunProgress, file_path: Path, entry_idx: int, entry: dict) -> Optional[tuple[dict[str, Any], TrajectoryMetrics]]:
+    async def _process_one(self, run: _RunProgress, file_path: Path, entry_idx: int, entry: "dict") -> Optional[tuple[dict[str, Any], TrajectoryMetrics]]:
         """Process one entry under the semaphore/timeout; None means dropped (timed out)."""
         async with run.semaphore:
             async with run.lock:

@@ -1315,7 +1315,7 @@ class SessionDB(
         self._halt_if_db_generation_changed()
 
     @classmethod
-    def _is_structural_corruption_error(cls, exc: BaseException) -> bool:
+    def _is_structural_corruption_error(cls, exc: "BaseException") -> bool:
         """Bare SQLITE_CORRUPT/NOTADB with no FTS provenance: canonical B-tree/schema/freelist damage,
         never repairable from the live write path."""
         return (
@@ -1329,7 +1329,7 @@ class SessionDB(
         """Build the quarantine error for this handle (message assembled once)."""
         return StateDbCorruptError(f"{prefix}{_STATE_DB_CORRUPT_MSG} (cause: {self._db_corrupt_reason})")
 
-    def _halt_db_corrupt(self, exc: BaseException) -> None:
+    def _halt_db_corrupt(self, exc: "BaseException") -> None:
         """Quarantine this handle and raise; never run in-file repair here."""
         self._db_corrupt = True
         self._db_corrupt_reason = str(exc)
@@ -1488,7 +1488,7 @@ class SessionDB(
         except Exception as exc:
             logger.warning("WAL checkpoint (PASSIVE) failed: %s", exc)
 
-    def __enter__(self) -> SessionDB:
+    def __enter__(self) -> "SessionDB":
         """``with SessionDB(path) as db:`` closes on exit; owners must release deterministically.
 
         Ownership of a SessionDB should be released explicitly. Historically an instance with a started
@@ -1707,7 +1707,7 @@ class AsyncSessionDB:
     """Async door onto SessionDB: every call runs via asyncio.to_thread so a blocking SQLite call
     never freezes the event loop (no method returns a live cursor)."""
 
-    def __init__(self, db: SessionDB) -> None:
+    def __init__(self, db: "SessionDB") -> None:
         self._db = db
 
     def __getattr__(self, name: str):

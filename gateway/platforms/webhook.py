@@ -80,7 +80,7 @@ class _WebhookDeliveryIdentity:
     delivery_id: str
 
     @classmethod
-    def from_parts(cls, profile: Optional[str], route: str, delivery_id: str) -> _WebhookDeliveryIdentity:
+    def from_parts(cls, profile: Optional[str], route: str, delivery_id: str) -> "_WebhookDeliveryIdentity":
         return cls(profile=profile or "default", route=route, delivery_id=delivery_id)
 
     @property
@@ -236,7 +236,7 @@ class WebhookAdapter(BasePlatformAdapter):
 
     # --- Lifecycle ---
 
-    def _validate_route(self, name: str, route: dict) -> None:
+    def _validate_route(self, name: str, route: "dict") -> None:
         """Startup validation: secret required; INSECURE_NO_AUTH only on loopback (crash early on a public footgun)."""
         secret = route.get("secret", self._global_secret)
         if not _is_usable_secret(secret):
@@ -389,7 +389,7 @@ class WebhookAdapter(BasePlatformAdapter):
         """GET /health — simple health check."""
         return web.json_response({"status": "ok", "platform": "webhook"})
 
-    def _dynamic_route_allowed(self, name: str, route: dict) -> bool:
+    def _dynamic_route_allowed(self, name: str, route: "dict") -> bool:
         """Reject dynamic routes whose effective secret is missing, blank, or not a string
         (_is_usable_secret); INSECURE_NO_AUTH is loopback-only."""
         effective_secret = route.get("secret", self._global_secret)
@@ -486,7 +486,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return profile if profile in served else _PROFILE_REJECTED
 
     @staticmethod
-    def _route_allows_profile(route_config: dict, request_profile: Optional[str]) -> bool:
+    def _route_allows_profile(route_config: "dict", request_profile: Optional[str]) -> bool:
         """Omitting ``profile`` binds a route to default; an explicit null/blank/non-string fails closed."""
         configured = route_config.get("profile") if "profile" in route_config else "default"
         if not isinstance(configured, str) or not configured.strip():
@@ -503,7 +503,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return _profile_runtime_scope(get_profile_dir(profile))
 
     async def _read_authenticated_body(self, request: web.Request, route_name: str,
-                                       route_config: dict) -> tuple[Optional[bytes], Optional[web.Response]]:
+                                       route_config: "dict") -> tuple[Optional[bytes], Optional[web.Response]]:
         """Auth-before-body: size-cap, read, then HMAC-validate. Returns ``(body, None)`` or ``(None, response)``."""
         if (request.content_length or 0) > self._max_body_bytes:
             return None, _json_error("Payload too large", 413)
@@ -529,7 +529,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return raw_body, None
 
     @staticmethod
-    def _parse_body(raw_body: bytes) -> Any:
+    def _parse_body(raw_body: "bytes") -> Any:
         """JSON, falling back to form-encoded; ``_UNPARSEABLE`` when neither parses."""
         try:
             return json.loads(raw_body)
@@ -540,7 +540,7 @@ class WebhookAdapter(BasePlatformAdapter):
             except Exception:
                 return _UNPARSEABLE
 
-    async def _handle_deliver_only(self, prompt: str, payload: Any, route_config: dict, route_name: str,
+    async def _handle_deliver_only(self, prompt: str, payload: Any, route_config: "dict", route_name: str,
                                    event_type: str, delivery_id: str, profile: Optional[str] = None) -> web.Response:
         """deliver_only: the rendered prompt IS the message — skip the agent, reuse the same
         auth/rate-limit/idempotency/template pipeline."""
@@ -564,7 +564,7 @@ class WebhookAdapter(BasePlatformAdapter):
                        delivery["deliver"], result.error)
         return web.json_response(failed, status=502)
 
-    def _handle_cron_trigger(self, prompt: str, route_config: dict, route_name: str, event_type: str,
+    def _handle_cron_trigger(self, prompt: str, route_config: "dict", route_name: str, event_type: str,
                              delivery_id: str, profile: Optional[str] = None) -> web.Response:
         """cron_job: fire an EXISTING cron job on this event instead of starting a webhook agent session.
         The rendered prompt is transient per-run context (same rail as ``cronjob(action='run', prompt=...)``);
@@ -617,7 +617,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return route_name, route_config, profile, None
 
     @staticmethod
-    def _apply_skills(prompt: str, skills: list) -> str:
+    def _apply_skills(prompt: str, skills: "list") -> str:
         """Inject the first matching skill via build_skill_invocation_message() directly — /skill-name slash
         commands would be intercepted by the command parser."""
         try:
@@ -698,7 +698,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return self._dispatch_agent_run(request, route_config, route_name, profile, payload, prompt, event_type,
                                         delivery_id, now)
 
-    def _dispatch_agent_run(self, request, route_config: dict, route_name: str, profile, payload: Any, prompt: str,
+    def _dispatch_agent_run(self, request, route_config: "dict", route_name: str, profile, payload: Any, prompt: str,
                             event_type: str, delivery_id: str, now: float) -> web.Response:
         """Spawn the agent run for one POST and return 202 immediately."""
         logger.info("[webhook] %s event=%s route=%s prompt_len=%d delivery=%s", request.method, event_type, route_name,
@@ -708,7 +708,7 @@ class WebhookAdapter(BasePlatformAdapter):
         return web.json_response({"status": "accepted", "route": route_name, "event": event_type,
                                   "delivery_id": delivery_id}, status=202)
 
-    def _spawn_agent_run(self, payload: Any, prompt: str, delivery_id: str, now: float, *, route_config: dict,
+    def _spawn_agent_run(self, payload: Any, prompt: str, delivery_id: str, now: float, *, route_config: "dict",
                          route_name: str, profile, event_type: str) -> asyncio.Task:
         """Record delivery info and fire the agent run (shared by the immediate and coalesced paths)."""
         identity = _WebhookDeliveryIdentity.from_parts(profile, route_name, delivery_id)
@@ -766,7 +766,7 @@ class WebhookAdapter(BasePlatformAdapter):
 
     # --- Signature validation ---
 
-    def _validate_signature(self, request: web.Request, body: bytes, secret: str) -> bool:
+    def _validate_signature(self, request: web.Request, body: "bytes", secret: str) -> bool:
         """Validate webhook signature (GitHub, GitLab, Svix, Standard Webhooks, Linear, generic HMAC-SHA256)."""
         headers = request.headers
 
@@ -820,7 +820,7 @@ class WebhookAdapter(BasePlatformAdapter):
 
     # --- Prompt rendering ---
 
-    def _render_prompt(self, template: str, payload: dict, event_type: str, route_name: str) -> str:
+    def _render_prompt(self, template: str, payload: "dict", event_type: str, route_name: str) -> str:
         """Render a prompt template with dot-notation payload access (``{pull_request.title}``);
         ``{__raw__}`` dumps the whole payload as indented JSON (truncated to 4000 chars)."""
         if not template:
@@ -842,14 +842,14 @@ class WebhookAdapter(BasePlatformAdapter):
 
         return _TEMPLATE_KEY_RE.sub(_resolve, template)
 
-    def _render_delivery_extra(self, extra: dict, payload: dict) -> dict:
+    def _render_delivery_extra(self, extra: "dict", payload: "dict") -> "dict":
         """Render delivery_extra template values with payload data."""
         return {key: self._render_prompt(value, payload, "", "") if isinstance(value, str) else value
                 for key, value in extra.items()}
 
     # --- Response delivery ---
 
-    async def _direct_deliver(self, content: str, delivery: dict) -> SendResult:
+    async def _direct_deliver(self, content: str, delivery: "dict") -> SendResult:
         """deliver_only: dispatch *content* to the same delivery helpers agent-mode ``send()`` uses."""
         deliver_type = delivery.get("deliver", "log")
         if deliver_type == "log":  # startup validation rejects deliver_only + log; guard defensively
@@ -859,7 +859,7 @@ class WebhookAdapter(BasePlatformAdapter):
             return await self._deliver_github_comment(content, delivery)
         return await self._deliver_cross_platform(deliver_type, content, delivery)
 
-    async def _deliver_github_comment(self, content: str, delivery: dict) -> SendResult:
+    async def _deliver_github_comment(self, content: str, delivery: "dict") -> SendResult:
         """Post agent response as a GitHub PR/issue comment via ``gh`` CLI."""
         extra = delivery.get("deliver_extra", {})
         repo, pr_number = extra.get("repo", ""), extra.get("pr_number", "")
@@ -919,7 +919,7 @@ class WebhookAdapter(BasePlatformAdapter):
         a secondary profile — both directions leaked before #65939."""
         return self.gateway_runner._authorization_adapter(target_platform, profile)
 
-    async def _deliver_cross_platform(self, platform_name: str, content: str, delivery: dict) -> SendResult:
+    async def _deliver_cross_platform(self, platform_name: str, content: str, delivery: "dict") -> SendResult:
         """Route response to another platform (telegram, discord, etc.)."""
         if not self.gateway_runner:
             return SendResult(success=False, error="No gateway runner for cross-platform delivery")
@@ -954,7 +954,7 @@ class WebhookAdapter(BasePlatformAdapter):
         from gateway.config import load_gateway_config
         return load_gateway_config()
 
-    def _mirror_delivery(self, platform_name: str, chat_id: str, content: str, delivery: dict,
+    def _mirror_delivery(self, platform_name: str, chat_id: str, content: str, delivery: "dict",
                          thread_id: Optional[str]) -> None:
         """Best-effort mirror of a delivered response into the TARGET chat's session transcript, so a
         follow-up there ("so he's out?") sees what the webhook run just told the user. Without this the

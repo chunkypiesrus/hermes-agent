@@ -2135,7 +2135,7 @@ class BasePlatformAdapter(ABC):
         return t("gateway.progress.tool_preview", emoji=emoji, tool=tool, preview=self.format_tool_preview(prepared))
 
 
-    def format_tool_preview(self, preview: ToolPreview) -> str:
+    def format_tool_preview(self, preview: "ToolPreview") -> str:
         """Platform-native formatting of a compact tool preview; rich-text adapters may use
         the preview's metadata (e.g. a URL shortened for display)."""
         return preview.text
@@ -2155,7 +2155,7 @@ class BasePlatformAdapter(ABC):
         return chat_id in self._auto_tts_enabled_chats or (
             chat_id not in self._auto_tts_disabled_chats and bool(self._auto_tts_default))
 
-    def set_fatal_error_handler(self, handler: Callable[[BasePlatformAdapter], Awaitable[None] | None]) -> None:
+    def set_fatal_error_handler(self, handler: Callable[["BasePlatformAdapter"], Awaitable[None] | None]) -> None:
         self._fatal_error_handler = handler
 
     #: Published when an adapter is installed and running but its receive
@@ -2914,7 +2914,7 @@ class BasePlatformAdapter(ABC):
         return SendResult(success=False, error="Not supported")
 
     @staticmethod
-    def _format_choice_page(options: list, page: int, per_page: int) -> tuple[list, dict[str, Any]]:
+    def _format_choice_page(options: "list", page: int, per_page: int) -> tuple[list, dict[str, Any]]:
         """Shared picker pagination: clamp ``page``, slice ``options`` -> ``(page_options, meta)``
         with ``page``/``total_pages``/``start``/``end``/``total``/``page_info`` (`` (N–M of T)``,
         empty for one page)."""
@@ -3185,7 +3185,7 @@ class BasePlatformAdapter(ABC):
         write/finish/abort calls, or ``None`` to decline (whole-file fallback)."""
         return None
 
-    async def write_streaming_tts(self, handle: StreamingTTSHandle, chunk: bytes) -> None:
+    async def write_streaming_tts(self, handle: StreamingTTSHandle, chunk: "bytes") -> None:
         """Write one PCM chunk to the adapter's outbound audio track."""
 
     async def finish_streaming_tts(self, handle: StreamingTTSHandle, *, interrupted: bool = False) -> None:
@@ -3628,7 +3628,7 @@ class BasePlatformAdapter(ABC):
             logger.debug("[%s] Failed to resolve media delivery scope", self.name, exc_info=True)
             return contextlib.nullcontext()
 
-    def _final_delivery_adapter(self, source: Optional[SessionSource]) -> BasePlatformAdapter:
+    def _final_delivery_adapter(self, source: Optional[SessionSource]) -> "BasePlatformAdapter":
         """The runner's CURRENT adapter for a new final-response send: a reconnect can swap the
         registry adapter mid-task; an unsent final response belongs on the replacement transport,
         while message IDs, edits and deletes stay owned by the old one (nothing is migrated)."""
@@ -4220,7 +4220,7 @@ class BasePlatformAdapter(ABC):
         return paths, requested_path
 
     def _wants_auto_tts(self, event: MessageEvent, session_key: str, interrupt_event: asyncio.Event,
-                        text_content: str, media_files: list) -> bool:
+                        text_content: str, media_files: "list") -> bool:
         """Auto-TTS on voice input (voice-first), gated by /voice or voice.auto_tts;
         skipped when streaming TTS already delivered audio this turn."""
         generation = getattr(interrupt_event, "_hermes_run_generation", None)
@@ -4244,7 +4244,7 @@ class BasePlatformAdapter(ABC):
 
     async def _record_delivery_obligation(
         self, event: MessageEvent, session_key: str, text_content: str,
-        delivery_adapter: BasePlatformAdapter, is_ephemeral_response: bool) -> Optional[str]:
+        delivery_adapter: "BasePlatformAdapter", is_ephemeral_response: bool) -> Optional[str]:
         """Ledger the final response BEFORE the send so a crash before platform ACK redelivers on
         next boot; best-effort, skips slash-command and ephemeral replies. Returns the obligation id
         or None."""
@@ -4278,7 +4278,7 @@ class BasePlatformAdapter(ABC):
 
     async def _finalize_delivery_obligation(
         self, obligation_id: str, result: Any, event: MessageEvent,
-        delivery_adapter: BasePlatformAdapter) -> None:
+        delivery_adapter: "BasePlatformAdapter") -> None:
         """Mark the ledger row delivered/failed (best-effort). On ``send_path_degraded`` with a
         replacement adapter live, trigger another redelivery sweep (the watcher's may have run
         before this failure landed; atomic claiming keeps it idempotent). On any other rejection arm
@@ -4308,7 +4308,7 @@ class BasePlatformAdapter(ABC):
             logger.debug("delivery ledger update failed", exc_info=True)
 
     async def _deliver_media_attachments(
-        self, event: MessageEvent, media_files: list, local_files: list, *,
+        self, event: MessageEvent, media_files: "list", local_files: "list", *,
         force_document_attachments: bool, human_delay: float, metadata: dict[str, Any],
         record_delivery: Callable) -> None:
         """Deliver MEDIA-tag files and detected local files by type: images batched via
@@ -4361,7 +4361,7 @@ class BasePlatformAdapter(ABC):
                     logger.error("[%s] Error sending local file %s: %s", self.name, path, err)
 
     async def _send_image_batch(
-        self, event: MessageEvent, images: list, metadata: dict[str, Any], human_delay: float,
+        self, event: MessageEvent, images: "list", metadata: dict[str, Any], human_delay: float,
         record_delivery: Callable) -> None:
         """Batch-send images; a failure is logged (never raised) so other attachments still go.
         The batch result feeds ``record_delivery`` so media-only turns report their real
@@ -4378,7 +4378,7 @@ class BasePlatformAdapter(ABC):
     async def send_final_ledgered(
         self, event: MessageEvent, session_key: str, text_content: str, metadata: dict[str, Any], *,
         reply_to: Optional[str], is_ephemeral_response: bool = False,
-    ) -> tuple[SendResult, BasePlatformAdapter]:
+    ) -> tuple[SendResult, "BasePlatformAdapter"]:
         """The delivery-ledger bracket every final text goes through, on the CURRENT transport
         (a reconnect may have replaced this adapter): record the obligation before the send,
         send with retry, finalize from the result — so a refused final (flood control, a dead
@@ -4418,7 +4418,7 @@ class BasePlatformAdapter(ABC):
         if ephemeral_ttl and ephemeral_ttl > 0 and result.success and result.message_id:
             delivery_adapter._schedule_ephemeral_delete(event.source.chat_id, result.message_id, ephemeral_ttl)
 
-    async def _notify_turn_error(self, event: MessageEvent, e: BaseException) -> Optional[dict]:
+    async def _notify_turn_error(self, event: MessageEvent, e: "BaseException") -> Optional[dict]:
         """Tell the user a turn failed rather than leaving radio silence (last resort:
         a failing notice is logged, never raised). Returns the thread metadata used."""
         _thread_metadata = None
